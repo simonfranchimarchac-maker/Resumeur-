@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Résumeur">
+<title>Résumeur IA</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;1,400&family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+<style>
+:root {
+  --bg:#0d0d0d;--surface:#161616;--card:#1e1e1e;--border:#2a2a2a;
+  --gold:#c9a84c;--gold-dim:#3d3020;--text:#f0ede8;--muted:#666;
+  --green:#4caf7d;--red:#e05555;--radius:14px;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+body{font-family:'Lato',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;}
+.header{padding:52px 24px 28px;background:linear-gradient(160deg,#1a1608 0%,#0d0d0d 60%);border-bottom:1px solid var(--border);}
+.header-eyebrow{font-size:0.68rem;letter-spacing:0.2em;text-transform:uppercase;color:var(--gold);font-weight:700;margin-bottom:10px;}
+.header h1{font-family:'Playfair Display',serif;font-size:2.2rem;font-weight:700;line-height:1.1;}
+.header h1 em{font-style:italic;font-weight:400;color:var(--gold);}
+.header-sub{margin-top:10px;font-size:0.82rem;color:var(--muted);}
+main{padding:24px 16px 60px;max-width:580px;margin:0 auto;display:flex;flex-direction:column;gap:16px;}
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;}
+.card-header{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;}
+.card-icon{width:30px;height:30px;background:var(--gold-dim);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:0.95rem;flex-shrink:0;}
+.card-title{font-size:0.78rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--gold);}
+.card-body{padding:18px;}
+.input-wrap{position:relative;}
+.input-wrap input{width:100%;padding:13px 46px 13px 14px;background:var(--surface);border:1.5px solid var(--border);border-radius:10px;font-family:'Lato',sans-serif;font-size:0.9rem;color:var(--text);outline:none;transition:border-color 0.2s;}
+.input-wrap input::placeholder{color:var(--muted);}
+.input-wrap input:focus{border-color:var(--gold);}
+.eye-btn{position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--muted);font-size:1rem;cursor:pointer;padding:4px;}
+.hint{margin-top:8px;font-size:0.73rem;color:var(--muted);line-height:1.5;}
+.hint a{color:var(--gold);text-decoration:none;}
+.drop-zone{border:1.5px dashed var(--border);border-radius:10px;padding:30px 20px;text-align:center;cursor:pointer;position:relative;transition:all 0.2s;background:var(--surface);}
+.drop-zone.over{border-color:var(--gold);background:var(--gold-dim);}
+.drop-zone input[type=file]{position:absolute;inset:0;opacity:0;width:100%;height:100%;cursor:pointer;}
+.drop-emoji{font-size:2rem;margin-bottom:8px;}
+.drop-main{font-size:0.9rem;font-weight:700;margin-bottom:4px;}
+.drop-formats{font-size:0.73rem;color:var(--muted);}
+.file-list{margin-top:12px;display:flex;flex-direction:column;gap:8px;}
+.file-item{display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 12px;}
+.file-emoji{font-size:1.1rem;flex-shrink:0;}
+.file-name{flex:1;font-size:0.83rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.file-size{font-size:0.72rem;color:var(--muted);flex-shrink:0;}
+.file-del{background:none;border:none;color:var(--muted);font-size:1rem;cursor:pointer;padding:2px 6px;flex-shrink:0;}
+.btn-run{width:100%;padding:18px;background:var(--gold);color:#0d0d0d;border:none;border-radius:var(--radius);font-family:'Playfair Display',serif;font-size:1.1rem;font-weight:700;cursor:pointer;transition:opacity 0.2s,transform 0.1s;}
+.btn-run:active{transform:scale(0.98);}
+.btn-run:disabled{opacity:0.35;cursor:not-allowed;}
+.progress-box{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:18px;display:none;flex-direction:column;gap:10px;}
+.progress-box.visible{display:flex;}
+.progress-text{font-size:0.82rem;color:var(--muted);text-align:center;}
+.progress-track{background:var(--border);border-radius:99px;height:3px;overflow:hidden;}
+.progress-fill{height:100%;background:var(--gold);border-radius:99px;transition:width 0.5s ease;width:0%;}
+.error-box{background:#2a1010;border:1px solid #4a2020;border-radius:10px;padding:13px 16px;font-size:0.83rem;color:var(--red);display:none;line-height:1.5;}
+.error-box.visible{display:block;}
+.result-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;animation:rise 0.4s ease both;}
+@keyframes rise{from{opacity:0;transform:translateY(14px);}to{opacity:1;transform:translateY(0);}}
+.result-head{padding:13px 16px;background:var(--gold-dim);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;}
+.result-head-name{flex:1;font-size:0.82rem;font-weight:700;color:var(--gold);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.result-body{padding:18px;font-size:0.88rem;line-height:1.8;color:#ccc;white-space:pre-wrap;word-break:break-word;}
+.result-actions{padding:0 16px 14px;}
+.btn-copy{width:100%;padding:10px;background:var(--surface);border:1px solid var(--border);border-radius:8px;font-family:'Lato',sans-serif;font-size:0.8rem;font-weight:700;color:var(--text);cursor:pointer;letter-spacing:0.05em;text-transform:uppercase;}
+.btn-copy.done{background:#0f2a1a;color:var(--green);border-color:#1e4030;}
+</style>
+</head>
+<body>
+<div class="header">
+  <div class="header-eyebrow">✦ Agent IA</div>
+  <h1>Résumeur<br><em>de documents</em></h1>
+  <p class="header-sub">PDF · Word · Texte — chaque document résumé séparément</p>
+</div>
+<main>
+  <div class="card">
+    <div class="card-header">
+      <div class="card-icon">🔑</div>
+      <div class="card-title">Clé API Anthropic</div>
+    </div>
+    <div class="card-body">
+      <div class="input-wrap">
+        <input type="password" id="apiKey" placeholder="sk-ant-api03-…" autocomplete="off" spellcheck="false"/>
+        <button class="eye-btn" id="eyeBtn" type="button">👁</button>
+      </div>
+      <p class="hint">Obtenez votre clé sur <a href="https://console.anthropic.com/keys" target="_blank">console.anthropic.com</a> — sauvegardée sur votre appareil.</p>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-header">
+      <div class="card-icon">📁</div>
+      <div class="card-title">Vos documents</div>
+    </div>
+    <div class="card-body">
+      <div class="drop-zone" id="dropZone">
+        <input type="file" id="fileInput" multiple accept=".pdf,.docx,.txt,.md"/>
+        <div class="drop-emoji">📂</div>
+        <div class="drop-main">Appuyez pour ajouter des fichiers</div>
+        <div class="drop-formats">PDF · Word (.docx) · Texte (.txt)</div>
+      </div>
+      <div class="file-list" id="fileList"></div>
+    </div>
+  </div>
+  <button class="btn-run" id="runBtn" type="button">Générer les résumés ✦</button>
+  <div class="error-box" id="errorBox"></div>
+  <div class="progress-box" id="progressBox">
+    <div class="progress-text" id="progressText">Initialisation…</div>
+    <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+  </div>
+  <div id="results"></div>
+</main>
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+var files=[];
+try{var sk=localStorage.getItem('ak');if(sk)document.getElementById('apiKey').value=sk;}catch(e){}
+document.getElementById('apiKey').addEventListener('change',function(){try{localStorage.setItem('ak',this.value.trim());}catch(e){}});
+document.getElementById('eyeBtn').addEventListener('click',function(){var i=document.getElementById('apiKey');i.type=i.type==='password'?'text':'password';this.textContent=i.type==='password'?'👁':'🙈';});
+var dz=document.getElementById('dropZone');
+document.getElementById('fileInput').addEventListener('change',function(){addFiles(this.files);this.value='';});
+dz.addEventListener('dragover',function(e){e.preventDefault();dz.classList.add('over');});
+dz.addEventListener('dragleave',function(){dz.classList.remove('over');});
+dz.addEventListener('drop',function(e){e.preventDefault();dz.classList.remove('over');addFiles(e.dataTransfer.files);});
+function fileEmoji(n){var e=n.split('.').pop().toLowerCase();return e==='pdf'?'📕':e==='docx'?'📘':'📄';}
+function fmtSize(b){return b<1048576?Math.round(b/1024)+' KB':(b/1048576).toFixed(1)+' MB';}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function addFiles(list){for(var i=0;i<list.length;i++){var f=list[i],ext=f.name.split('.').pop().toLowerCase();if(['pdf','docx','txt','md'].indexOf(ext)===-1)continue;if(!files.find(function(x){return x.name===f.name;}))files.push(f);}renderFiles();}
+function removeFile(name){files=files.filter(function(f){return f.name!==name;});renderFiles();}
+function renderFiles(){document.getElementById('fileList').innerHTML=files.map(function(f){return'<div class="file-item"><span class="file-emoji">'+fileEmoji(f.name)+'</span><span class="file-name">'+esc(f.name)+'</span><span class="file-size">'+fmtSize(f.size)+'</span><button class="file-del" type="button" onclick="removeFile('+JSON.stringify(f.name)+')">✕</button></div>';}).join('');}
+function extractText(file){
+  var ext=file.name.split('.').pop().toLowerCase();
+  if(ext==='txt'||ext==='md'){return new Promise(function(res,rej){var r=new FileReader();r.onload=function(e){res(e.target.result);};r.onerror=function(){rej(new Error('Lecture impossible'));};r.readAsText(file,'UTF-8');});}
+  if(ext==='pdf'){return file.arrayBuffer().then(function(buf){return pdfjsLib.getDocument({data:buf}).promise;}).then(function(pdf){var arr=[];for(var i=1;i<=Math.min(pdf.numPages,40);i++)arr.push(i);return arr.reduce(function(p,n){return p.then(function(acc){return pdf.getPage(n).then(function(pg){return pg.getTextContent().then(function(tc){return acc+tc.items.map(function(s){return s.str;}).join(' ')+'\n';});});});},Promise.resolve(''));}).then(function(text){if(!text.trim())throw new Error('PDF sans texte extractible');return text;});}
+  if(ext==='docx'){return file.arrayBuffer().then(function(buf){return mammoth.extractRawText({arrayBuffer:buf});}).then(function(r){if(!r.value.trim())throw new Error('Document vide');return r.value;});}
+  return Promise.reject(new Error('Format non supporté'));
+}
+function callSummarize(apiKey,filename,text){
+  return fetch('/.netlify/functions/summarize',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({apiKey:apiKey,filename:filename,text:text})}).then(function(res){return res.json().then(function(data){if(!res.ok)throw new Error(data.error||'Erreur '+res.status);return data.summary;});});
+}
+function setProgress(pct,label){document.getElementById('progressFill').style.width=pct+'%';document.getElementById('progressText').textContent=label;}
+function showError(msg){var b=document.getElementById('errorBox');b.textContent='⚠️ '+msg;b.classList.add('visible');setTimeout(function(){b.classList.remove('visible');},8000);}
+document.getElementById('runBtn').addEventListener('click',function(){
+  var apiKey=document.getElementById('apiKey').value.trim();
+  if(!apiKey){showError('Entrez votre clé API.');return;}
+  if(!files.length){showError('Ajoutez au moins un fichier.');return;}
+  var btn=document.getElementById('runBtn'),pb=document.getElementById('progressBox'),rd=document.getElementById('results');
+  btn.disabled=true;pb.classList.add('visible');rd.innerHTML='';
+  document.getElementById('errorBox').classList.remove('visible');
+  var i=0;
+  function next(){
+    if(i>=files.length){setProgress(100,'✅ Tous les résumés sont prêts !');setTimeout(function(){pb.classList.remove('visible');},2500);btn.disabled=false;return;}
+    var f=files[i],pct=Math.round(i/files.length*100);
+    setProgress(pct,'📖 Lecture de « '+f.name+' »…');
+    extractText(f).then(function(text){setProgress(pct+15,'🤖 Résumé de « '+f.name+' »…');return callSummarize(apiKey,f.name,text);}).then(function(summary){appendResult(f,summary,false);}).catch(function(e){appendResult(f,e.message,true);}).then(function(){i++;next();});
+  }
+  next();
+});
+function appendResult(f,summary,isError){
+  var rd=document.getElementById('results'),uid='r'+Date.now()+Math.random().toString(36).slice(2);
+  var card=document.createElement('div');card.className='result-card';
+  card.innerHTML='<div class="result-head"'+(isError?' style="background:#2a1010;"':'')+'>'+
+    '<span>'+fileEmoji(f.name)+'</span>'+
+    '<span class="result-head-name"'+(isError?' style="color:var(--red);"':'')+'>'+esc(f.name)+'</span></div>'+
+    '<div class="result-body" id="'+uid+'">'+esc(summary)+'</div>'+
+    (!isError?'<div class="result-actions"><button class="btn-copy" type="button" onclick="doCopy(\''+uid+'\',this)">📋 Copier</button></div>':'');
+  rd.appendChild(card);
+}
+function doCopy(id,btn){var t=document.getElementById(id).textContent;function flash(){btn.textContent='✅ Copié!';btn.classList.add('done');setTimeout(function(){btn.textContent='📋 Copier';btn.classList.remove('done');},2000);}if(navigator.clipboard){navigator.clipboard.writeText(t).then(flash).catch(function(){fbCopy(t,flash);});}else{fbCopy(t,flash);}}
+function fbCopy(t,cb){var ta=document.createElement('textarea');ta.value=t;ta.style.cssText='position:fixed;opacity:0;';document.body.appendChild(ta);ta.focus();ta.select();document.execCommand('copy');document.body.removeChild(ta);cb();}
+</script>
+</body>
+</html>
